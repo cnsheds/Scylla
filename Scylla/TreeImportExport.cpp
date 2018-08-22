@@ -10,18 +10,18 @@ TreeImportExport::TreeImportExport(const WCHAR * targetXmlFile)
 
 bool TreeImportExport::exportTreeList(const std::map<DWORD_PTR, ImportModuleThunk> & moduleList, const Process * process, DWORD_PTR addressOEP, DWORD_PTR addressIAT, DWORD sizeIAT)
 {
-	TiXmlDocument doc;
+	xml_document doc;
 
-	TiXmlDeclaration * decl = new TiXmlDeclaration("1.0", "", "");
-	doc.LinkEndChild(decl);
+	xml_node decl = doc.prepend_child(node_declaration);
+	decl.append_attribute("version") = "1.0";
+	decl.append_attribute("encoding") = "UTF-8";
+	decl.append_attribute("standalone") = "no";
 
-	TiXmlElement * rootElement = new TiXmlElement("target");
+	xml_node rootElement = doc.append_child("target");
 
 	setTargetInformation(rootElement, process, addressOEP, addressIAT, sizeIAT);
 
 	addModuleListToRootElement(rootElement, moduleList);
-	
-	doc.LinkEndChild(rootElement);
 
 	return saveXmlToFile(doc, xmlPath);
 }
@@ -32,141 +32,125 @@ bool TreeImportExport::importTreeList(std::map<DWORD_PTR, ImportModuleThunk> & m
 	*addressOEP = *addressIAT = 0;
 	*sizeIAT = 0;
 
-	TiXmlDocument doc;
-	if(!readXmlFile(doc, xmlPath))
+	xml_document doc;
+	xml_parse_result ret = doc.load_file(xmlPath);
+	if (ret.status != xml_parse_status::status_ok)
 	{
-		Scylla::windowLog.log(L"Load Tree :: Error parsing xml %S: %S\r\n", doc.Value(), doc.ErrorDesc());
+		Scylla::windowLog.log(L"Load Tree :: Error parsing xml %s: %s\r\n", xmlPath, ret.description());
 		return false;
 	}
 
-	TiXmlElement * targetElement = doc.FirstChildElement();
+	xml_node targetElement = doc.first_child();
 	if (!targetElement)
 	{
-		Sylla::windowLog.log(L"Load Tree :: Error getting first child element in xml %S\r\n", doc.Value());
+		Scylla::windowLog.log(L"Load Tree :: Error getting first child element in xml %s\r\n", doc.value());
 		return false;
 	}
 
-	*addressOEP = ConvertStringToDwordPtr(targetElement->Attribute("oep_va"));
-	*addressIAT = ConvertStringToDwordPtr(targetElement->Attribute("iat_va"));
-	*sizeIAT = (DWORD)ConvertStringToDwordPtr(targetElement->Attribute("iat_size"));
+	*addressOEP = ConvertStringToDwordPtr(targetElement.attribute("oep_va").value());
+	*addressIAT = ConvertStringToDwordPtr(targetElement.attribute("iat_va").value());
+	*sizeIAT = (DWORD)ConvertStringToDwordPtr(targetElement.attribute("iat_size").value());
 
 	parseAllElementModules(targetElement, moduleList);
 
 	return true;
 }
 
-void TreeImportExport::setTargetInformation(TiXmlElement * rootElement, const Process * process, DWORD_PTR addressOEP, DWORD_PTR addressIAT, DWORD sizeIAT)
+void TreeImportExport::setTargetInformation(xml_node &rootElement, const Process * process, DWORD_PTR addressOEP, DWORD_PTR addressIAT, DWORD sizeIAT)
 {
 	StringConversion::ToASCII(process->filename, xmlStringBuffer, _countof(xmlStringBuffer));
-	rootElement->SetAttribute("filename", xmlStringBuffer);
+	rootElement.append_attribute("filename").set_value(xmlStringBuffer);
 
 	ConvertDwordPtrToString(addressOEP);
-	rootElement->SetAttribute("oep_va", xmlStringBuffer);
+	rootElement.append_attribute("oep_va").set_value(xmlStringBuffer);
 
 	ConvertDwordPtrToString(addressIAT);
-	rootElement->SetAttribute("iat_va", xmlStringBuffer);
+	rootElement.append_attribute("iat_va").set_value(xmlStringBuffer);
 
 	ConvertDwordPtrToString(sizeIAT);
-	rootElement->SetAttribute("iat_size", xmlStringBuffer);
+	rootElement.append_attribute("iat_size").set_value(xmlStringBuffer);
 }
 
-bool TreeImportExport::readXmlFile(TiXmlDocument& doc, const WCHAR * xmlFilePath)
+bool TreeImportExport::readXmlFile(xml_document& doc, const WCHAR * xmlFilePath)
 {
 	bool success = false;
 
-	FILE * pFile = 0;
-	if (_wfopen_s(&pFile, xmlFilePath, L"rb") == 0)
-	{
-		success = doc.LoadFile(pFile);
-		fclose (pFile);
-	}
+	xml_parse_result ret = doc.load_file(xmlFilePath);
+	if (ret == xml_parse_status::status_ok)
+		success = true;
 
 	return success;
 }
 
-bool TreeImportExport::saveXmlToFile(const TiXmlDocument& doc, const WCHAR * xmlFilePath)
+bool TreeImportExport::saveXmlToFile(const xml_document& doc, const WCHAR * xmlFilePath)
 {
-	FILE * pFile = 0;
-	if (_wfopen_s(&pFile, xmlFilePath, L"wb") == 0)
-	{
-		doc.Print(pFile);
-		fclose(pFile);
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return doc.save_file(xmlFilePath);
 }
 
-void TreeImportExport::addModuleListToRootElement(TiXmlElement * rootElement, const std::map<DWORD_PTR, ImportModuleThunk> & moduleList)
+void TreeImportExport::addModuleListToRootElement(xml_node & rootElement, const std::map<DWORD_PTR, ImportModuleThunk> & moduleList)
 {
 	std::map<DWORD_PTR, ImportModuleThunk>::const_iterator it_mod;
 	for(it_mod = moduleList.begin(); it_mod != moduleList.end(); it_mod++)
 	{
 		const ImportModuleThunk& importModuleThunk = it_mod->second;
 
-		TiXmlElement* moduleElement = getModuleXmlElement(&importModuleThunk);
+		xml_node moduleElement = getModuleXmlElement(rootElement, &importModuleThunk);
 
 		std::map<DWORD_PTR, ImportThunk>::const_iterator it_thunk;
 		for(it_thunk = importModuleThunk.thunkList.begin(); it_thunk != importModuleThunk.thunkList.end(); it_thunk++)
 		{
 			const ImportThunk& importThunk = it_thunk->second;
 
-			TiXmlElement* importElement = getImportXmlElement(&importThunk);
-
-			moduleElement->LinkEndChild(importElement);
+			getImportXmlElement(moduleElement, &importThunk);
 		}
-
-		rootElement->LinkEndChild(moduleElement);
 	}
 }
 
-TiXmlElement * TreeImportExport::getModuleXmlElement(const ImportModuleThunk * importModuleThunk)
+xml_node TreeImportExport::getModuleXmlElement(xml_node & rootElement, const ImportModuleThunk * importModuleThunk)
 {
-	TiXmlElement * moduleElement = new TiXmlElement("module");
+	xml_node moduleElement = rootElement.append_child("module");
 
 	StringConversion::ToASCII(importModuleThunk->moduleName, xmlStringBuffer, _countof(xmlStringBuffer));
-	moduleElement->SetAttribute("filename", xmlStringBuffer);
+	moduleElement.append_attribute("filename").set_value(xmlStringBuffer);
 
 	ConvertDwordPtrToString(importModuleThunk->getFirstThunk());
-	moduleElement->SetAttribute("first_thunk_rva", xmlStringBuffer);
+	moduleElement.append_attribute("first_thunk_rva").set_value(xmlStringBuffer);
 
 	return moduleElement;
 }
 
-TiXmlElement * TreeImportExport::getImportXmlElement(const ImportThunk * importThunk)
+xml_node TreeImportExport::getImportXmlElement(xml_node & moduleElement, const ImportThunk * importThunk)
 {
-	TiXmlElement * importElement = 0;
+	xml_node importElement = moduleElement.append_child();
 	
 	if (importThunk->valid)
 	{
-		importElement = new TiXmlElement("import_valid");
+		importElement.set_name("import_valid");
 
 		if(importThunk->name[0] != '\0')
 		{
-			importElement->SetAttribute("name", importThunk->name);
+			importElement.append_attribute("name").set_value(importThunk->name);
 		}
 
 		ConvertWordToString(importThunk->ordinal);
-		importElement->SetAttribute("ordinal",xmlStringBuffer);
+		importElement.append_attribute("ordinal").set_value(xmlStringBuffer);
 
 		ConvertWordToString(importThunk->hint);
-		importElement->SetAttribute("hint",xmlStringBuffer);
-
+		importElement.append_attribute("hint").set_value(xmlStringBuffer);
+		
 		ConvertBoolToString(importThunk->suspect);
-		importElement->SetAttribute("suspect", xmlStringBuffer);
+		importElement.append_attribute("suspect").set_value(xmlStringBuffer);
 	}
 	else
 	{
-		importElement = new TiXmlElement("import_invalid");
+		importElement.set_name("import_invalid");
 	}
 
 	ConvertDwordPtrToString(importThunk->rva);
-	importElement->SetAttribute("iat_rva", xmlStringBuffer);
+	importElement.append_attribute("iat_rva").set_value(xmlStringBuffer);
 
 	ConvertDwordPtrToString(importThunk->apiAddressVA);
-	importElement->SetAttribute("address_va", xmlStringBuffer);
+	importElement.append_attribute("address_va").set_value(xmlStringBuffer);
 
 	return importElement;
 }
@@ -234,18 +218,18 @@ WORD TreeImportExport::ConvertStringToWord(const char * strValue)
 	return result;
 }
 
-void TreeImportExport::parseAllElementModules(TiXmlElement * targetElement, std::map<DWORD_PTR, ImportModuleThunk> & moduleList)
+void TreeImportExport::parseAllElementModules(xml_node & targetElement, std::map<DWORD_PTR, ImportModuleThunk> & moduleList)
 {
 	ImportModuleThunk importModuleThunk;
 
-	for(TiXmlElement * moduleElement = targetElement->FirstChildElement(); moduleElement; moduleElement = moduleElement->NextSiblingElement())
+	for(xml_node moduleElement = targetElement.first_child(); moduleElement; moduleElement = moduleElement.next_sibling())
 	{
-		const char * filename = moduleElement->Attribute("filename");
+		const char * filename = moduleElement.attribute("filename").value();
 		if (filename)
 		{
 			StringConversion::ToUTF16(filename, importModuleThunk.moduleName, _countof(importModuleThunk.moduleName));
 
-			importModuleThunk.firstThunk = ConvertStringToDwordPtr(moduleElement->Attribute("first_thunk_rva"));
+			importModuleThunk.firstThunk = ConvertStringToDwordPtr(moduleElement.attribute("first_thunk_rva").value());
 
 			importModuleThunk.thunkList.clear();
 			parseAllElementImports(moduleElement, &importModuleThunk);
@@ -255,17 +239,17 @@ void TreeImportExport::parseAllElementModules(TiXmlElement * targetElement, std:
 	}
 }
 
-void TreeImportExport::parseAllElementImports(TiXmlElement * moduleElement, ImportModuleThunk * importModuleThunk)
+void TreeImportExport::parseAllElementImports(xml_node & moduleElement, ImportModuleThunk * importModuleThunk)
 {
 	ImportThunk importThunk;
 
-	for(TiXmlElement * importElement = moduleElement->FirstChildElement(); importElement; importElement = importElement->NextSiblingElement())
+	for(xml_node  importElement = moduleElement.first_child(); importElement; importElement = importElement.next_sibling())
 	{
-		const char * temp = importElement->Value();
+		const char * temp = importElement.name();
 
 		if (!strcmp(temp, "import_valid"))
 		{
-			temp = importElement->Attribute("name");
+			temp = importElement.attribute("name").value();
 			if (temp)
 			{
 				strcpy_s(importThunk.name, temp);
@@ -277,9 +261,9 @@ void TreeImportExport::parseAllElementImports(TiXmlElement * moduleElement, Impo
 
 			wcscpy_s(importThunk.moduleName, importModuleThunk->moduleName);
 
-			importThunk.suspect = ConvertStringToBool(importElement->Attribute("suspect"));
-			importThunk.ordinal = ConvertStringToWord(importElement->Attribute("ordinal"));
-			importThunk.hint = ConvertStringToWord(importElement->Attribute("hint"));
+			importThunk.suspect = ConvertStringToBool(importElement.attribute("suspect").value());
+			importThunk.ordinal = ConvertStringToWord(importElement.attribute("ordinal").value());
+			importThunk.hint = ConvertStringToWord(importElement.attribute("hint").value());
 
 			importThunk.valid = true;
 		}
@@ -289,8 +273,8 @@ void TreeImportExport::parseAllElementImports(TiXmlElement * moduleElement, Impo
 			importThunk.suspect = true;
 		}
 
-		importThunk.apiAddressVA = ConvertStringToDwordPtr(importElement->Attribute("address_va"));
-		importThunk.rva = ConvertStringToDwordPtr(importElement->Attribute("iat_rva"));
+		importThunk.apiAddressVA = ConvertStringToDwordPtr(importElement.attribute("address_va").value());
+		importThunk.rva = ConvertStringToDwordPtr(importElement.attribute("iat_rva").value());
 
 		if (importThunk.rva != 0)
 		{

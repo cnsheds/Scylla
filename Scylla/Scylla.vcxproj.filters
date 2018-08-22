@@ -25,6 +25,9 @@
     <Filter Include="Source Files\Helper">
       <UniqueIdentifier>{bbdfcdb4-3526-43c4-8984-da0f635cc93b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="pugixml">
+      <UniqueIdentifier>{07fc8e81-4f5c-44a2-9bfa-16996a57ecd1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -122,6 +125,9 @@
     </ClCompile>
     <ClCompile Include="IATReferenceScan.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\pugixml\pugixml.cpp">
+      <Filter>pugixml</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -229,6 +235,12 @@
     </ClInclude>
     <ClInclude Include="IATReferenceScan.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pugixml\pugixml.hpp">
+      <Filter>pugixml</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pugixml\pugiconfig.hpp">
+      <Filter>pugixml</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

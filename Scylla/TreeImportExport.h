@@ -3,8 +3,9 @@
 #include <windows.h>
 #include "ProcessLister.h"
 #include "Thunks.h"
-#include <tinyxml.h>
+#include "pugixml.hpp"
 
+using namespace pugi;
 class TreeImportExport
 {
 public:
@@ -20,17 +21,17 @@ private:
 
 	char xmlStringBuffer[MAX_PATH];
 
-	void setTargetInformation(TiXmlElement * rootElement, const Process * process, DWORD_PTR addressOEP, DWORD_PTR addressIAT, DWORD sizeIAT);
-	void addModuleListToRootElement(TiXmlElement * rootElement, const std::map<DWORD_PTR, ImportModuleThunk> & moduleList);
+	void setTargetInformation(xml_node & rootElement, const Process * process, DWORD_PTR addressOEP, DWORD_PTR addressIAT, DWORD sizeIAT);
+	void addModuleListToRootElement(xml_node & rootElement, const std::map<DWORD_PTR, ImportModuleThunk> & moduleList);
 
-	void parseAllElementModules(TiXmlElement * targetElement, std::map<DWORD_PTR, ImportModuleThunk> & moduleList);
-	void parseAllElementImports(TiXmlElement * moduleElement, ImportModuleThunk * importModuleThunk);
+	void parseAllElementModules(xml_node & targetElement, std::map<DWORD_PTR, ImportModuleThunk> & moduleList);
+	void parseAllElementImports(xml_node & moduleElement, ImportModuleThunk * importModuleThunk);
 
-	TiXmlElement * getModuleXmlElement(const ImportModuleThunk * importModuleThunk);
-	TiXmlElement * getImportXmlElement(const ImportThunk * importThunk);
+	xml_node getModuleXmlElement(xml_node & rootElement, const ImportModuleThunk * importModuleThunk);
+	xml_node getImportXmlElement(xml_node & moduleElement, const ImportThunk * importThunk);
 
-	bool saveXmlToFile(const TiXmlDocument& doc, const WCHAR * xmlFilePath);
-	bool readXmlFile(TiXmlDocument& doc, const WCHAR * xmlFilePath);
+	bool saveXmlToFile(const xml_document& doc, const WCHAR * xmlFilePath);
+	bool readXmlFile(xml_document& doc, const WCHAR * xmlFilePath);
 
 	void ConvertBoolToString(const bool boolValue);
 	void ConvertWordToString(const WORD dwValue);
