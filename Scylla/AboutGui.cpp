@@ -11,7 +11,7 @@ const WCHAR AboutGui::TEXT_CREDIT_SILK[]    = L"The small icons are taken from t
 const WCHAR AboutGui::TEXT_CREDIT_WTL[]     = L"<a>Windows Template Library</a> v8 is used for the GUI";
 const WCHAR AboutGui::TEXT_GREETINGS[]      = L"Greetz: metr0, G36KV and all from the gRn Team";
 const WCHAR AboutGui::TEXT_LICENSE[]        = L"Scylla is licensed under the <a>GNU General Public License v3</a>";
-const WCHAR AboutGui::TEXT_TINYXML[]        = L"XML support is provided by <a>TinyXML</a>";
+const WCHAR AboutGui::TEXT_TINYXML[]        = L"XML support is provided by <a>pugixml</a>";
 
 const WCHAR AboutGui::URL_VISIT1[]  = L"http://www.c0rk.org/portal/a/";
 const WCHAR AboutGui::URL_VISIT2[]  = L"http://forum.tuts4you.com";
@@ -19,7 +19,7 @@ const WCHAR AboutGui::URL_DISTORM[] = L"http://code.google.com/p/distorm/";
 const WCHAR AboutGui::URL_WTL[]     = L"http://wtl.sourceforge.net";
 const WCHAR AboutGui::URL_SILK[]    = L"http://www.famfamfam.com";
 const WCHAR AboutGui::URL_LICENSE[] = L"http://www.gnu.org/licenses/gpl-3.0.html";
-const WCHAR AboutGui::URL_TINYXML[] = L"http://sourceforge.net/projects/tinyxml/";
+const WCHAR AboutGui::URL_TINYXML[] = L"https://pugixml.org/";
 
 BOOL AboutGui::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 {
